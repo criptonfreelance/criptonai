@@ -1,7 +1,7 @@
 import tempfile
 import os
 import sys
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import assemblyai as aai
 from docx import Document
 from docx.shared import Pt
@@ -21,17 +21,16 @@ def home():
 
 @app.route('/process', methods=['POST'])
 def process():
-    files = request.files.getlist('file')  # Get all uploaded files
+    files = request.files.getlist('file')
+    user_api_key = request.form.get('apiKey')
     output_format = request.form.get('outputFormat')
-    output_dir = request.form.get('outputDir')
     include_speaker_labels = request.form.get('speakerLabels') == 'yes'
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    if not user_api_key:
+        return jsonify({'error': 'AssemblyAI API key is required'}), 400
 
-    if not files:
-        return jsonify({'error': 'No input files provided'}), 400
-
+    aai.settings.api_key = user_api_key
+    output_dir = tempfile.gettempdir()
     results = []
 
     for file in files:
@@ -78,7 +77,7 @@ def process():
                         print(f"Writing SRT file to: {srt_output_filename}")
                         with open(srt_output_filename, "w") as srt_file:
                             srt_file.write(transcript.export_subtitles_srt())
-                        results.append(srt_output_filename)
+                        output_filename = srt_output_filename
                     else:
                         return jsonify({'error': 'No words detected for captions generation.'}), 500
                 elif output_format == "vtt":
@@ -87,7 +86,7 @@ def process():
                         print(f"Writing VTT file to: {vtt_output_filename}")
                         with open(vtt_output_filename, "w") as vtt_file:
                             vtt_file.write(transcript.export_subtitles_vtt())
-                        results.append(vtt_output_filename)
+                        output_filename = vtt_output_filename
                     else:
                         return jsonify({'error': 'No words detected for captions generation.'}), 500
                 else:  # Handle transcription output
@@ -139,7 +138,6 @@ def process():
 
                     # Save the document
                     doc.save(output_filename)
-                    results.append(output_filename)
 
         except Exception as e:
             return jsonify({'error': f'Transcription failed due to an error: {str(e)}'}), 500
@@ -148,7 +146,7 @@ def process():
             if input_source:
                 os.remove(input_source)
 
-    return render_template('result.html', output_paths=results)
+    return send_file(output_filename, as_attachment=True)
 
 if __name__ == "__main__":
     serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
