@@ -139,6 +139,9 @@ def process():
                     # Save the document
                     doc.save(output_filename)
 
+                # Append output_filename to results as before
+                results.append(output_filename)
+
         except Exception as e:
             return jsonify({'error': f'Transcription failed due to an error: {str(e)}'}), 500
 
@@ -146,7 +149,7 @@ def process():
             if input_source:
                 os.remove(input_source)
 
-    return send_file(output_filename, as_attachment=True)
+    return send_file(results[0], as_attachment=True)
 
 if __name__ == "__main__":
     serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
