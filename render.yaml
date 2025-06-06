@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: assemblyai-transcriber
+    name: critponai
     runtime: python
     buildCommand: ""
     startCommand: "waitress-serve --port=$PORT app:app"
